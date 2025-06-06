@@ -1,0 +1,4 @@
+gradio
+supabase-py
+python-dotenv
+psycopg2-binary

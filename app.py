@@ -107,7 +107,14 @@ def process_rental_request(selected_equipment_ids, start_date_str, end_date_str,
         update_eq_res = supabase.table("equipments").update({"available_quantity": new_available_quantity}).eq("id", equipment_id_to_rent).execute()
         if not (update_eq_res.data and len(update_eq_res.data) > 0): print(f"Warning: Equip quantity update for {equipment_id_to_rent} failed: {update_eq_res}")
         return f"성공: 장비 '{equipment_name}' 대여 신청이 완료되었습니다. (기간: {start_date_str} ~ {end_date_str})", []
-    except Exception as e: print(f"Error processing rental request: {e}, {type(e)}"); err_msg=str(e); if "violates row-level security policy" in err_msg: return f"오류: 보안 정책 위반 ({err_msg}).", selected_equipment_ids; if "check_constraint" in err_msg and "available_quantity" in err_msg: return "오류: 데이터베이스 제약 조건 위반 (수량).", selected_equipment_ids; return f"대여 처리 중 서버 오류 발생: {err_msg}", selected_equipment_ids
+    except Exception as e: 
+        print(f"Error processing rental request: {e}, {type(e)}")
+        err_msg = str(e)
+        if "violates row-level security policy" in err_msg: 
+            return f"오류: 보안 정책 위반 ({err_msg}).", selected_equipment_ids
+        if "check_constraint" in err_msg and "available_quantity" in err_msg: 
+            return "오류: 데이터베이스 제약 조건 위반 (수량).", selected_equipment_ids
+        return f"대여 처리 중 서버 오류 발생: {err_msg}", selected_equipment_ids
 
 # --- Admin Specific Functions ---
 def fetch_all_equipments_admin_action(user_session): # Renamed to avoid conflict with component
@@ -169,7 +176,13 @@ def update_equipment_admin_action(original_item_state, new_id_str, name, dept, n
 
 # --- Main Gradio Application ---
 if __name__ == "__main__":
-    if not supabase: print("Gradio app launch failed: Supabase client not initialized."); fallback_demo = gr.Blocks(title="오류"); with fallback_demo: gr.Markdown("Supabase 연결 실패."); fallback_demo.launch(); exit()
+    if not supabase:
+        print("Gradio app launch failed: Supabase client not initialized.")
+        fallback_demo = gr.Blocks(title="오류")
+        with fallback_demo: 
+            gr.Markdown("Supabase 연결 실패.")
+            fallback_demo.launch()
+            exit()
 
     print("Initializing Gradio app...")
     demo = gr.Blocks(title="장비 대여 및 관리 앱", theme=gr.themes.Soft())

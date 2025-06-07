@@ -47,7 +47,7 @@ def df_select_for_rental(df_state_val: pd.DataFrame, evt: gr.SelectData) -> tupl
                 return f"{sel_name} (ID: {sel_id}) 대여 불가 (잔여:0).", [], gr.update(interactive=False)
     return "선택된 장비 없음.", [], gr.update(interactive=False)
 
-def handle_request_rental_navigation(sel_ids: list, user_sess: Any, current_tabs: gr.Tabs) -> gr.Tabs:
+def handle_request_rental_navigation(sel_ids: list, user_sess: any, current_tabs: gr.Tabs) -> gr.Tabs:
     if user_sess and sel_ids:
         return gr.Tabs(selected="rental_tab")
     else:
@@ -70,7 +70,7 @@ def update_rental_selected_display(sel_ids: list) -> str:
     return "장비 선택 필요"
 
 # Admin Tab
-def handle_fetch_all_equip_admin(user_sess: Any) -> tuple[pd.DataFrame, str]:
+def handle_fetch_all_equip_admin(user_sess: any) -> tuple[pd.DataFrame, str]:
     if get_user_role(user_sess, ADMIN_EMAIL) != 'admin':
         return pd.DataFrame(columns=['ID', '장비명', '부서', '총량', '가용량']), "관리자 권한이 필요합니다."
     return fetch_all_equipments_admin()
@@ -84,7 +84,7 @@ def admin_df_select_for_edit(df_admin_data: pd.DataFrame, evt: gr.SelectData) ->
             return sel_row, sel_row['ID'], sel_row['장비명'], sel_row['부서'], str(sel_row['총량']), gr.Tabs(selected="admin_add_edit_tab")
     return None, None, None, None, None, gr.Tabs() # Return empty Tabs to avoid error, or current state
 
-def add_equip_refresh_list(eq_id: str, name: str, dept: str, qty_str: str, sess: Any, current_admin_df: pd.DataFrame) -> tuple:
+def add_equip_refresh_list(eq_id: str, name: str, dept: str, qty_str: str, sess: any, current_admin_df: pd.DataFrame) -> tuple:
     if get_user_role(sess, ADMIN_EMAIL) != 'admin':
         return "관리자 권한 필요.", eq_id, name, dept, qty_str, current_admin_df
     feedback, out_id, out_name, out_dept, out_qty = add_equipment_admin(eq_id, name, dept, qty_str)
@@ -96,7 +96,7 @@ def add_equip_refresh_list(eq_id: str, name: str, dept: str, qty_str: str, sess:
         gr.Error(feedback)
         return feedback, out_id, out_name, out_dept, out_qty, current_admin_df
 
-def update_equip_refresh_list(sel_state: dict, new_id: str, name: str, dept: str, new_qty_str: str, sess: Any, current_admin_df: pd.DataFrame) -> tuple:
+def update_equip_refresh_list(sel_state: dict, new_id: str, name: str, dept: str, new_qty_str: str, sess: any, current_admin_df: pd.DataFrame) -> tuple:
     if get_user_role(sess, ADMIN_EMAIL) != 'admin':
         return "관리자 권한 필요.", sel_state, new_id, name, dept, new_qty_str, current_admin_df
     feedback, out_sel_state, out_id, out_name, out_dept, out_qty = update_equipment_admin(sel_state, new_id, name, dept, new_qty_str)
@@ -129,7 +129,7 @@ def handle_login_ui_updates(email: str, pw: str, current_admin_df: pd.DataFrame,
         gr.Error(msg)
         return msg, None, gr.update(visible=True), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), current_main_tabs, current_admin_df, ""
 
-def universal_logout_ui_updates(curr_sess: Any) -> tuple:
+def universal_logout_ui_updates(curr_sess: any) -> tuple:
     logout_msg, new_sess, sel_eq_cleared = logout_user(supabase_client, curr_sess)
     gr.Info(logout_msg)
     empty_admin_df = pd.DataFrame(columns=['ID', '장비명', '부서', '총량', '가용량'])
@@ -139,7 +139,7 @@ def universal_logout_ui_updates(curr_sess: Any) -> tuple:
             gr.update(visible=True), gr.update(visible=False), gr.Tabs(selected="search_tab"),
             sel_eq_cleared, empty_admin_df, None, "", "", "공용", "", "로그아웃됨.")
 
-def update_user_display(s: Any) -> str:
+def update_user_display(s: any) -> str:
     if s and hasattr(s, 'user') and s.user:
         role = get_user_role(s, ADMIN_EMAIL)
         expires_at_str = "N/A"

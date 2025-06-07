@@ -290,3 +290,75 @@ def update_equipment_admin(
     except Exception as e:
         print(f"Error in update_equipment_admin: {e}, {type(e)}")
         return f"장비 수정 처리 중 서버 오류: {str(e)}", original_item_state, processed_new_id, name, dept, new_qty_str
+
+def fetch_all_rental_details() -> Tuple[pd.DataFrame, str]:
+    client = get_supabase_client()
+    # Define column names for the DataFrame
+    df_columns = ["대여자 (Borrower)", "장비명 (Equipment Name)", "수량 (Quantity)", "대여 시작일 (Start Date)", "반납 기한 (End Date)", "상태 (Status)"]
+    empty_df = pd.DataFrame(columns=df_columns)
+
+    if not client:
+        return empty_df, get_supabase_init_error() or "Supabase client not initialized."
+
+    try:
+        # Query rentals and join with equipments to get equipment name.
+        # Assumes 'rentals' has 'equipment_id', 'borrower_name', 'quantity', 'start_date', 'end_date', 'status'.
+        # Assumes 'equipments' has 'id' (matching 'equipment_id') and 'name'.
+        response = client.table("rentals").select(
+            "borrower_name, start_date, end_date, quantity, status, equipments!inner(name)"
+        ).order("start_date", desc=True).execute()
+
+        if response.data:
+            data_for_df = []
+            for row in response.data:
+                # Accessing joined table data: Supabase nests it.
+                # equipments!inner(name) should result in row['equipments']['name']
+                # If equipments could be null (e.g. left join), more careful access is needed.
+                # With !inner, 'equipments' should always be present.
+                equipment_data = row.get('equipments')
+                equipment_name = equipment_data['name'] if isinstance(equipment_data, dict) and equipment_data.get('name') else "N/A"
+
+                data_for_df.append({
+                    "대여자 (Borrower)": row.get('borrower_name'),
+                    "장비명 (Equipment Name)": equipment_name,
+                    "수량 (Quantity)": row.get('quantity'),
+                    "대여 시작일 (Start Date)": row.get('start_date'),
+                    "반납 기한 (End Date)": row.get('end_date'),
+                    "상태 (Status)": row.get('status')
+                })
+
+            df = pd.DataFrame(data_for_df, columns=df_columns)
+            # Convert date columns if they are not already in YYYY-MM-DD string format
+            for col_name in ["대여 시작일 (Start Date)", "반납 기한 (End Date)"]:
+                if col_name in df.columns and not df[col_name].empty:
+                    try:
+                        # Ensure data is string before trying to parse, or handle various input types
+                        df[col_name] = pd.to_datetime(df[col_name], errors='coerce').dt.strftime('%Y-%m-%d')
+                        df[col_name] = df[col_name].fillna("N/A") # Handle any NaT values after coercion
+                    except Exception as e:
+                        print(f"Warning: Could not parse/format date column {col_name}: {e}")
+                        df[col_name] = "Error" # Placeholder for problematic date data
+
+            return df, "전체 대여 현황을 성공적으로 불러왔습니다."
+        else:
+            return empty_df, "대여 현황 데이터가 없습니다." # Or "response.error.message" if available
+
+    except Exception as e:
+        error_message = str(e)
+        # Attempt to parse PostgREST error for more specific messages
+        try:
+            import json
+            error_payload = json.loads(error_message)
+            if isinstance(error_payload, dict) and "message" in error_payload:
+                error_message = error_payload["message"]
+        except:
+            pass # Keep original error_message if it's not JSON
+
+        print(f"Error fetching all rental details: {error_message}")
+
+        if "column" in error_message.lower() and "does not exist" in error_message.lower():
+             if 'quantity' in error_message.lower() and 'rentals' in error_message.lower(): # Make check case-insensitive
+                 return empty_df, f"데이터베이스 오류: 'rentals' 테이블에 'quantity' 컬럼이 없는 것 같습니다. ({error_message})"
+
+        # General error message
+        return empty_df, f"전체 대여 현황 조회 중 오류 발생: {error_message}"

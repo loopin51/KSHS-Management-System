@@ -19,7 +19,8 @@ from db_utils import (
     process_rental_request,
     fetch_all_equipments_admin, # Renamed in db_utils
     add_equipment_admin,       # Renamed in db_utils
-    update_equipment_admin     # Renamed in db_utils
+    update_equipment_admin,     # Renamed in db_utils
+    fetch_all_rental_details
 )
 # Load dotenv here if ADMIN_EMAIL is the only thing needed from .env in app.py
 # If db_utils already loads it, it might not be necessary here unless for other env vars.
@@ -156,6 +157,20 @@ def update_user_display(s: Any) -> str:
         return f"Email: {s.user.email}\nRole: {role}\nExpires: {expires_at_str}"
     return "로그인되지 않음."
 
+# Handler for fetching and displaying all rental details
+def handle_fetch_all_rentals_ui():
+    # No user_session needed if visible to all, and db_utils function doesn't require it.
+    # supabase_client is global in app.py
+    if not supabase_client: # Check if client is available
+         init_err = get_supabase_init_error() or "Supabase client not initialized."
+         return pd.DataFrame(columns=["대여자 (Borrower)", "장비명 (Equipment Name)", "수량 (Quantity)", "대여 시작일 (Start Date)", "반납 기한 (End Date)", "상태 (Status)"]), f"오류: {init_err}"
+
+    df, message = fetch_all_rental_details() # From db_utils
+    if "오류" in message or "Error" in message: # A bit generic, but works for now
+        gr.Error(message)
+    else:
+        gr.Info(message)
+    return df, message
 
 # --- Main Gradio Application ---
 if __name__ == "__main__":
@@ -178,6 +193,7 @@ if __name__ == "__main__":
         current_search_df_state = gr.State(pd.DataFrame(columns=['ID', '장비명 (Name)', '부서 (Department)', '총 수량 (Total)', '대여 가능 수량 (Available)']))
         admin_all_equipments_df_state = gr.State(pd.DataFrame(columns=['ID', '장비명', '부서', '총량', '가용량'])) # For admin view
         selected_equipment_for_edit_state = gr.State(None) # Stores dict of row data for editing
+        all_rentals_df_state = gr.State(pd.DataFrame(columns=["대여자 (Borrower)", "장비명 (Equipment Name)", "수량 (Quantity)", "대여 시작일 (Start Date)", "반납 기한 (End Date)", "상태 (Status)"]))
 
         gr.Markdown("# 🇰🇷 장비 대여 및 관리 시스템 🇰🇷")
         if not ADMIN_EMAIL: gr.Warning("ADMIN_EMAIL 환경 변수가 설정되지 않았습니다. 관리자 기능이 제한될 수 있습니다.")
@@ -190,6 +206,19 @@ if __name__ == "__main__":
                 search_results_df = gr.DataFrame(label="조회된 장비 목록", headers=['ID', '장비명 (Name)', '부서 (Department)', '총 수량 (Total)', '대여 가능 수량 (Available)'], value=pd.DataFrame(columns=['ID', '장비명 (Name)', '부서 (Department)', '총 수량 (Total)', '대여 가능 수량 (Available)']), datatype=['str', 'str', 'str', 'number', 'number'], interactive=True, row_count=(5,"dynamic"), col_count=(5,"fixed"))
                 search_status_output = gr.Textbox(label="조회 상태", interactive=False)
                 gr.Markdown("---"); selected_items_display = gr.Textbox(label="선택된 장비 (대여 가능 여부 확인)", interactive=False, lines=1); request_rental_button = gr.Button("✅ 선택 장비로 대여 신청 진행하기", variant="secondary", interactive=False)
+
+                gr.Markdown("---") # Separator
+                gr.Markdown("## 🗓️ 전체 대여 현황")
+                show_all_rentals_button = gr.Button("🔄 전체 대여 현황 보기/새로고침", variant="secondary")
+                all_rentals_status_output = gr.Textbox(label="대여 현황 조회 상태", interactive=False, lines=1)
+                all_rentals_df_display = gr.DataFrame(
+                    label="전체 대여 현황 목록",
+                    headers=["대여자 (Borrower)", "장비명 (Equipment Name)", "수량 (Quantity)", "대여 시작일 (Start Date)", "반납 기한 (End Date)", "상태 (Status)"],
+                    datatype=['str', 'str', 'number', 'date', 'date', 'str'], # Adjust datatypes as needed
+                    row_count=(10, "dynamic"),
+                    col_count=(6, "fixed"), # 6 columns now
+                    interactive=False # Typically display-only
+                )
 
             with gr.TabItem("📝 장비 대여", id="rental_tab"):
                 gr.Markdown("## 장비 대여 신청"); rental_selected_display = gr.Textbox(label="선택된 대여 장비 정보 (자동 업데이트)", lines=4, interactive=False)
@@ -229,6 +258,17 @@ if __name__ == "__main__":
             search_button.click(fetch_equipments, inputs=[search_dept_dropdown, search_term_input], outputs=[search_results_df, search_status_output])
             search_results_df.select(df_select_for_rental, inputs=[current_search_df_state], outputs=[selected_items_display, selected_equipment_to_rent_var, request_rental_button])
             request_rental_button.click(handle_request_rental_navigation, inputs=[selected_equipment_to_rent_var, user_session_var, main_tabs], outputs=[main_tabs])
+
+            show_all_rentals_button.click(
+                handle_fetch_all_rentals_ui,
+                inputs=None,
+                outputs=[all_rentals_df_state, all_rentals_status_output]
+            )
+            all_rentals_df_state.change(
+                lambda x: x,
+                inputs=[all_rentals_df_state],
+                outputs=[all_rentals_df_display]
+            )
 
             # --- Rental Tab Event Handlers ---
             selected_equipment_to_rent_var.change(update_rental_selected_display, inputs=[selected_equipment_to_rent_var], outputs=[rental_selected_display])

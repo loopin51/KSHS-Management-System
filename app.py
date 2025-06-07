@@ -31,6 +31,7 @@ load_dotenv() # Ensure ADMIN_EMAIL is loaded
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL")
 supabase_client = get_supabase_client()
 supabase_init_error = get_supabase_init_error()
+departments = ["물리과", "화학과", "IT과", "공과대학", "공용"] # Departments for dropdowns
 
 # --- Gradio Event Handlers ---
 
@@ -201,7 +202,7 @@ if __name__ == "__main__":
         with gr.Tabs(elem_id="main_tabs") as main_tabs:
             with gr.TabItem("🔎 장비 조회 및 검색", id="search_tab"):
                 gr.Markdown("## 장비 조회 및 검색")
-                with gr.Row(): search_dept_dropdown = gr.Dropdown(label="부서 선택", choices=["전체", "물리과", "화학과", "IT과", "공과대학", "공용"], value="전체"); search_term_input = gr.Textbox(label="검색어 (ID 또는 이름)", placeholder="예: EQP-001 또는 현미경")
+                with gr.Row(): search_dept_dropdown = gr.Dropdown(label="부서 선택", choices=departments, value="전체"); search_term_input = gr.Textbox(label="검색어 (ID 또는 이름)", placeholder="예: EQP-001 또는 현미경")
                 search_button = gr.Button("🔄 장비 조회", variant="primary")
                 search_results_df = gr.DataFrame(label="조회된 장비 목록", headers=['ID', '장비명 (Name)', '부서 (Department)', '총 수량 (Total)', '대여 가능 수량 (Available)'], value=pd.DataFrame(columns=['ID', '장비명 (Name)', '부서 (Department)', '총 수량 (Total)', '대여 가능 수량 (Available)']), datatype=['str', 'str', 'str', 'number', 'number'], interactive=True, row_count=(5,"dynamic"), col_count=(5,"fixed"))
                 search_status_output = gr.Textbox(label="조회 상태", interactive=False)
@@ -247,7 +248,7 @@ if __name__ == "__main__":
                         gr.Markdown("### 장비 정보 입력/수정 (목록에서 선택 시 자동 입력)")
                         admin_edit_id_input = gr.Textbox(label="장비 ID (필수, 고유값)", placeholder="예: EQP-XYZ-001")
                         admin_edit_name_input = gr.Textbox(label="장비명 (필수)", placeholder="예: 고성능 오실로스코프")
-                        admin_edit_dept_dropdown = gr.Dropdown(label="부서 (필수)", choices=["물리과", "화학과", "IT과", "공과대학", "공용"], value="공용")
+                        admin_edit_dept_dropdown = gr.Dropdown(label="부서 (필수)", choices=departments, value="공용")
                         admin_edit_qty_input = gr.Textbox(label="총 수량 (필수, 숫자)", placeholder="예: 5")
                         with gr.Row(): admin_add_button = gr.Button("➕ 새 장비 추가", variant="primary"); admin_update_button = gr.Button("💾 선택 장비 정보 수정", variant="secondary"); admin_clear_fields_button = gr.Button("✨ 입력 초기화")
                 gr.Markdown("---"); logout_button_admin_tab = gr.Button("🔒 관리자 로그아웃"); logout_status_admin_tab_output = gr.Textbox(label="로그아웃 상태", interactive=False)

@@ -115,7 +115,7 @@ def clear_admin_form_fields_action() -> tuple:
 def handle_signup_action(email: str, pw: str, conf_pw: str) -> str:
     return signup_user(supabase_client, email, pw, conf_pw)
 
-def handle_login_ui_updates(email: str, pw: str, current_admin_df: pd.DataFrame, current_main_tabs: gr.Tabs) -> tuple:
+def handle_login_ui_updates(email: str, pw: str, current_admin_df: pd.DataFrame) -> tuple:
     sess_data, msg = login_user(supabase_client, email, pw)
     role = get_user_role(sess_data, ADMIN_EMAIL)
     if sess_data:
@@ -127,7 +127,7 @@ def handle_login_ui_updates(email: str, pw: str, current_admin_df: pd.DataFrame,
         return msg, sess_data, gr.update(visible=False), gr.update(True), gr.update(visible=False), gr.update(visible=True if role == 'admin' else False), gr.Tabs(selected="management_tab" if role == 'admin' else "search_tab"), df_admin_equip_val, msg_admin_equip_val
     else:
         gr.Error(msg)
-        return msg, None, gr.update(visible=True), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), current_main_tabs, current_admin_df, ""
+        return msg, None, gr.update(visible=True), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(), current_admin_df, ""
 
 def universal_logout_ui_updates(curr_sess: Any) -> tuple:
     logout_msg, new_sess, sel_eq_cleared = logout_user(supabase_client, curr_sess)
@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
             # --- Auth Event Handlers ---
             signup_button.click(handle_signup_action, inputs=[signup_email_input, signup_password_input, signup_confirm_password_input], outputs=[signup_status_output])
-            login_button.click(handle_login_ui_updates, inputs=[login_email_input, login_password_input, admin_all_equipments_df_state, main_tabs], outputs=[login_status_output, user_session_var, auth_forms_group, user_info_group, auth_tab_item_obj, admin_management_tab_item_obj, main_tabs, admin_all_equipments_df_state, admin_status_output])
+            login_button.click(handle_login_ui_updates, inputs=[login_email_input, login_password_input, admin_all_equipments_df_state], outputs=[login_status_output, user_session_var, auth_forms_group, user_info_group, auth_tab_item_obj, admin_management_tab_item_obj, main_tabs, admin_all_equipments_df_state, admin_status_output])
             logout_button_auth_tab.click(universal_logout_ui_updates, inputs=[user_session_var], outputs=[logout_status_auth_tab_output, user_session_var, auth_forms_group, user_info_group, auth_tab_item_obj, admin_management_tab_item_obj, main_tabs, selected_equipment_to_rent_var, admin_all_equipments_df_state, selected_equipment_for_edit_state, admin_edit_id_input, admin_edit_name_input, admin_edit_dept_dropdown, admin_edit_qty_input, admin_status_output])
             logout_button_admin_tab.click(universal_logout_ui_updates, inputs=[user_session_var], outputs=[logout_status_admin_tab_output, user_session_var, auth_forms_group, user_info_group, auth_tab_item_obj, admin_management_tab_item_obj, main_tabs, selected_equipment_to_rent_var, admin_all_equipments_df_state, selected_equipment_for_edit_state, admin_edit_id_input, admin_edit_name_input, admin_edit_dept_dropdown, admin_edit_qty_input, admin_status_output])
             user_session_var.change(update_user_display, inputs=[user_session_var], outputs=[current_user_display])
